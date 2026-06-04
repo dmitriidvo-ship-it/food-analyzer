@@ -70,3 +70,16 @@ html, body {
 .stagger-2 { animation-delay: 0.12s; }
 .stagger-3 { animation-delay: 0.19s; }
 .stagger-4 { animation-delay: 0.26s; }
+
+@keyframes float-0 {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-18px) rotate(3deg); }
+}
+@keyframes float-1 {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-12px) rotate(-4deg); }
+}
+@keyframes float-2 {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-22px) rotate(2deg); }
+}

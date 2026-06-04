@@ -1,7 +1,22 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Tesseract from 'tesseract.js';
+
+const BG_ICONS = [
+  { emoji: '🥤', size: 80, x: 5, y: 8, speed: 0.018 },
+  { emoji: '🍫', size: 110, x: 78, y: 5, speed: 0.025 },
+  { emoji: '🍕', size: 90, x: 55, y: 20, speed: 0.015 },
+  { emoji: '🧃', size: 70, x: 20, y: 35, speed: 0.022 },
+  { emoji: '🍩', size: 100, x: 85, y: 40, speed: 0.02 },
+  { emoji: '🥨', size: 75, x: 10, y: 60, speed: 0.028 },
+  { emoji: '🍪', size: 85, x: 65, y: 62, speed: 0.016 },
+  { emoji: '🧂', size: 60, x: 40, y: 75, speed: 0.024 },
+  { emoji: '🍟', size: 95, x: 88, y: 75, speed: 0.019 },
+  { emoji: '🍬', size: 70, x: 30, y: 88, speed: 0.021 },
+  { emoji: '🥫', size: 80, x: 72, y: 88, speed: 0.017 },
+  { emoji: '🍦', size: 65, x: 50, y: 50, speed: 0.023 },
+];
 
 export default function Home() {
   const [image, setImage] = useState(null);
@@ -10,7 +25,19 @@ export default function Home() {
   const [loadingText, setLoadingText] = useState('');
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [error, setError] = useState(null);
+  const [mouse, setMouse] = useState({ x: 0, y: 0 });
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      setMouse({
+        x: (e.clientX / window.innerWidth - 0.5) * 2,
+        y: (e.clientY / window.innerHeight - 0.5) * 2,
+      });
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -83,7 +110,27 @@ export default function Home() {
   const scoreData = result ? getScore(result.score) : null;
 
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--bg)', paddingBottom: '40px' }}>
+    <div style={{ minHeight: '100dvh', background: 'var(--bg)', paddingBottom: '40px', position: 'relative', overflow: 'hidden' }}>
+
+      {/* Floating background icons */}
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+        {BG_ICONS.map((icon, i) => (
+          <div key={i} style={{
+            position: 'absolute',
+            left: `${icon.x}%`,
+            top: `${icon.y}%`,
+            fontSize: `${icon.size}px`,
+            opacity: 0.07,
+            transform: `translate(${mouse.x * icon.speed * 120}px, ${mouse.y * icon.speed * 120}px)`,
+            transition: 'transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)',
+            userSelect: 'none',
+            animation: `float-${i % 3} ${6 + i * 0.7}s ease-in-out infinite`,
+            animationDelay: `${i * 0.4}s`,
+          }}>
+            {icon.emoji}
+          </div>
+        ))}
+      </div>
 
       {/* Header */}
       <header style={{
@@ -93,10 +140,12 @@ export default function Home() {
         justifyContent: 'space-between',
         maxWidth: '480px',
         margin: '0 auto',
+        position: 'relative',
+        zIndex: 1,
       }}>
         <div>
           <div className="font-display" style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>
-            Состав
+            FoodAnalyzer
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '1px' }}>
             анализ продуктов питания
@@ -111,7 +160,7 @@ export default function Home() {
         }}>🔬</div>
       </header>
 
-      <main style={{ maxWidth: '480px', margin: '0 auto', padding: '24px 20px 0' }}>
+      <main style={{ maxWidth: '480px', margin: '0 auto', padding: '24px 20px 0', position: 'relative', zIndex: 1 }}>
 
         {/* Upload screen */}
         {!image && !result && (
@@ -418,8 +467,66 @@ export default function Home() {
               </div>
             )}
 
+            {/* Alternatives */}
+            {result.alternatives && (
+              <div className="animate-fade-up stagger-3" style={{
+                background: 'var(--bg-card)',
+                borderRadius: 'var(--radius)',
+                padding: '20px',
+                boxShadow: 'var(--shadow-sm)',
+                border: '1px solid var(--accent-green-light)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                  <span style={{ fontSize: '18px' }}>{result.alternatives.emoji}</span>
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--accent-green)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                      Полезные альтернативы
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '1px' }}>
+                      {result.alternatives.label} · лучший выбор
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {result.alternatives.alternatives.slice(0, 3).map((alt, i) => (
+                    <div key={i} style={{
+                      background: 'var(--bg-muted)',
+                      borderRadius: 'var(--radius-sm)',
+                      padding: '12px 14px',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '12px',
+                    }}>
+                      <div style={{
+                        background: 'var(--accent-green)',
+                        color: '#fff',
+                        borderRadius: '8px',
+                        padding: '4px 8px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        flexShrink: 0,
+                      }}>
+                        {alt.score}/10
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.1px' }}>
+                          {alt.name}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '1px' }}>
+                          {alt.brand}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: '1.4' }}>
+                          {alt.reason}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Scan again */}
-            <div className="animate-fade-up stagger-3">
+            <div className="animate-fade-up stagger-4">
               <button
                 onClick={reset}
                 style={{

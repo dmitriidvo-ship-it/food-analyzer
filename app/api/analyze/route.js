@@ -1,9 +1,22 @@
 import OpenAI from 'openai';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 const client = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
   apiKey: process.env.OPENROUTER_API_KEY,
 });
+
+function getAlternatives(category) {
+  try {
+    const filePath = join(process.cwd(), 'data', 'alternatives.json');
+    const db = JSON.parse(readFileSync(filePath, 'utf-8'));
+    const key = category?.toLowerCase();
+    return db[key] || null;
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(request) {
   try {
@@ -21,20 +34,20 @@ ${text}
 """
 
 Твоя задача:
-1. Найди в тексте раздел "Состав" или "Ingredients" — это список ингредиентов
-2. Оцени продукт по шкале от 1 до 10, где:
+1. Найди в тексте раздел "Состав" или "Ingredients"
+2. Определи категорию продукта — выбери ОДНУ из: сладости, напитки, соусы, полуфабрикаты, снеки. Если не подходит ни одна — напиши null
+3. Оцени продукт по шкале от 1 до 10, где:
    - 1-2: очень вредный (много Е-шек, трансжиры, сахар на первом месте)
    - 3-4: плохой (много добавок, консервантов)
    - 5-6: средний (есть добавки, но умеренно)
    - 7-8: хороший (минимум добавок, натуральный состав)
    - 9-10: отличный (полностью натуральный)
-3. Выдели до 4 самых важных ингредиентов
-
-Если состав не найден в тексте — напиши об этом в verdict.
+4. Выдели до 4 самых важных ингредиентов
 
 Ответь СТРОГО в формате JSON без каких-либо других слов:
 {
   "score": число от 1 до 10,
+  "category": "сладости" | "напитки" | "соусы" | "полуфабрикаты" | "снеки" | null,
   "verdict": "краткий вывод 1-2 предложения на русском",
   "composition": "найденный состав продукта",
   "ingredients": [
@@ -55,6 +68,14 @@ ${text}
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('Модель не вернула JSON');
     const parsed = JSON.parse(jsonMatch[0]);
+
+    // Подбираем альтернативы из базы
+    if (parsed.category && parsed.score < 7) {
+      const altData = getAlternatives(parsed.category);
+      if (altData) {
+        parsed.alternatives = altData;
+      }
+    }
 
     return Response.json(parsed);
   } catch (err) {
