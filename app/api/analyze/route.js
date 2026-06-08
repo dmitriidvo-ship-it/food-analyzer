@@ -1,6 +1,19 @@
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
 import OpenAI from 'openai';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
+
+const ratelimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(20, '60 s'), // 5 запросов в 60 секунд
+  analytics: true, // статистика в дашборде Upstash
+});
 
 const client = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
@@ -18,7 +31,27 @@ function getAlternatives(category) {
   }
 }
 
+
 export async function POST(request) {
+  // Берём IP пользователя
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0] ?? '127.0.0.1';
+  
+  // Проверяем лимит
+  const { success, limit, remaining, reset } = await ratelimit.limit(ip);
+  
+  if (!success) {
+    return Response.json(
+      { error: `Слишком много запросов. Попробуй через ${Math.ceil((reset - Date.now()) / 1000)} секунд.` },
+      { 
+        status: 429,
+        headers: {
+          'X-RateLimit-Limit': limit,
+          'X-RateLimit-Remaining': remaining,
+          'X-RateLimit-Reset': reset,
+        }
+      }
+    );
+  }
   try {
     const { text } = await request.json();
 
