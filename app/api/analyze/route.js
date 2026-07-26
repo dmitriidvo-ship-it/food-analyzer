@@ -11,8 +11,8 @@ const redis = new Redis({
 
 const ratelimit = new Ratelimit({
   redis,
-  limiter: Ratelimit.slidingWindow(20, '60 s'), // 5 запросов в 60 секунд
-  analytics: true, // статистика в дашборде Upstash
+  limiter: Ratelimit.slidingWindow(20, '60 s'), 
+  analytics: true, 
 });
 
 const client = new OpenAI({
@@ -33,10 +33,10 @@ function getAlternatives(category) {
 
 
 export async function POST(request) {
-  // Берём IP пользователя
+
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0] ?? '127.0.0.1';
   
-  // Проверяем лимит
+
   const { success, limit, remaining, reset } = await ratelimit.limit(ip);
   
   if (!success) {
@@ -93,7 +93,7 @@ ${text}
 }`;
 
     const response = await client.chat.completions.create({
-      model: 'openrouter/owl-alpha',
+      model: 'inclusionai/ling-3.0-flash:free',
       messages: [{ role: 'user', content: prompt }],
     });
 
@@ -102,7 +102,7 @@ ${text}
     if (!jsonMatch) throw new Error('Модель не вернула JSON');
     const parsed = JSON.parse(jsonMatch[0]);
 
-    // Подбираем альтернативы из базы
+  
     if (parsed.category && parsed.score < 7) {
       const altData = getAlternatives(parsed.category);
       if (altData) {
